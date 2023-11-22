@@ -1,4 +1,4 @@
-use std::ops::{MulAssign, Mul};
+use std::ops::Mul;
 
 use super::Dot;
 

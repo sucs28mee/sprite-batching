@@ -1,14 +1,11 @@
 mod math;
 mod sprite_batch;
 
-use std::{collections::LinkedList, io::Cursor};
-use glium::{backend::glutin::SimpleWindowBuilder, program, Surface, glutin::{surface::WindowSurface}, Display, implement_vertex, VertexBuffer, IndexBuffer, texture::{Texture2dArray, Texture1dArray, CompressedTexture2d, RawImage2d, CompressedTexture2dArray}, index::{PrimitiveType, self, Index}, vertex, uniform, DrawParameters, Rect, program::{ProgramChooserCreationError}, Profile, Program, Texture2d};
-use image::{RgbaImage, DynamicImage, GenericImageView};
-use math::{Matrix4x4, Vector2};
+
+use glium::{backend::glutin::SimpleWindowBuilder, DrawParameters, program};
+use math::Vector2;
 use sprite_batch::{SpriteBatch, DrawData};
 use winit::{event_loop::EventLoopBuilder, event::{WindowEvent, Event}};
-
-
 
 fn main() {
     let event_loop = EventLoopBuilder::new().build();
@@ -39,7 +36,13 @@ fn main() {
                 }
             }
 
-            let mut sprite_batch = SpriteBatch::new(DrawParameters::default());
+            let mut sprite_batch = SpriteBatch::new(
+                DrawParameters::default(),
+                &window, 
+                &display, 
+                &program
+            );
+
             for (mut position, mut velocity) in particles.iter_mut() {
                 position.x += 2.5f32;
                 velocity *= 0.95f32;
@@ -55,7 +58,7 @@ fn main() {
                 );
             }
 
-            sprite_batch.flush(&window, &display, &program).unwrap();
+            sprite_batch.flush().unwrap();
         }
     );
 }

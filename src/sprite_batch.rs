@@ -3,14 +3,15 @@ use glium::{
     Program, 
     implement_vertex, 
     Display, 
-    glutin::surface::WindowSurface, 
-    program, 
-    program::ProgramChooserCreationError, 
+    glutin::surface::WindowSurface,
     VertexBuffer, 
     IndexBuffer, 
     index::PrimitiveType, 
-    texture::{CompressedTexture2dArray, RawImage2d}, Surface, uniform
+    texture::{CompressedTexture2dArray, RawImage2d}, 
+    Surface, 
+    uniform
 };
+
 use image::RgbaImage;
 use winit::window::Window;
 use crate::math::{Matrix4x4, Vector2};
@@ -33,19 +34,27 @@ struct Vertex {
 implement_vertex!(Vertex, index, position, matrix);
 pub struct SpriteBatch<'a> {
     pub draw_parameters: DrawParameters<'a>,
+    window: &'a Window,
+    display: &'a Display<WindowSurface>,
+    program: &'a Program,
     draw_data_cache: Vec<DrawData<'a>>
 }
 
 impl <'a> SpriteBatch<'a> {
-    pub fn new(draw_parameters: DrawParameters<'a>) -> Self {
-        Self { draw_parameters, draw_data_cache: Vec::new() }
+    pub fn new(
+        draw_parameters: DrawParameters<'a>, 
+        window: &'a Window, 
+        display: &'a Display<WindowSurface>, 
+        program: &'a Program
+    ) -> Self {
+        Self { draw_parameters, window, display, program, draw_data_cache: Vec::new() }
     }
 
     pub fn draw(&mut self, draw_data: DrawData<'a>) {
         self.draw_data_cache.push(draw_data);
     }
 
-    pub fn flush(mut self, window: &Window, display: &Display<WindowSurface>, program: &Program) -> Result<(), ()> {
+    pub fn flush(self) -> Result<(), ()> {
         if self.draw_data_cache.is_empty() {
             return Ok(());
         }
@@ -55,7 +64,7 @@ impl <'a> SpriteBatch<'a> {
         let mut textures = Vec::with_capacity(self.draw_data_cache.len());
 
         let (screen_width, screen_height) = {
-            let screen_size = window.inner_size();
+            let screen_size = self.window.inner_size();
             (screen_size.width as f32, screen_size.height as f32)
         };
 
@@ -109,24 +118,24 @@ impl <'a> SpriteBatch<'a> {
             indices[i * 6 + 5] = i as u32 * 4;
         }
 
-        let Ok(vertex_buffer) = VertexBuffer::new(display, &vertices) else {
+        let Ok(vertex_buffer) = VertexBuffer::new(self.display, &vertices) else {
             return Err(());
         };
 
-        let Ok(index_buffer) = IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices) else {
+        let Ok(index_buffer) = IndexBuffer::new(self.display, PrimitiveType::TrianglesList, &indices) else {
             return Err(());
         };
 
-        let Ok(textures) = CompressedTexture2dArray::new(display, textures) else {
+        let Ok(textures) = CompressedTexture2dArray::new(self.display, textures) else {
             return Err(());
         };
 
-        let mut frame = display.draw();
+        let mut frame = self.display.draw();
         frame.clear_color(0f32, 0f32, 0f32, 0f32);
         frame.draw(
             &vertex_buffer,
             &index_buffer,
-            program,
+            self.program,
             &uniform! {
                 textures: textures
             },
