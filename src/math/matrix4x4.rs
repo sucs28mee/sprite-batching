@@ -14,10 +14,10 @@ impl Matrix4x4 {
     pub fn new_translation(x: f32, y: f32, z: f32) -> Self {
         Self::new(
             [
-                [1f32, 0f32, 0f32, 0f32],
-                [0f32, 1f32, 0f32, 0f32],
-                [0f32, 0f32, 1f32, 0f32],
-                [x, y, z, 1f32]
+                [1f32, 0f32, 0f32, x],
+                [0f32, 1f32, 0f32, y],
+                [0f32, 0f32, 1f32, z],
+                [0f32, 0f32, 0f32, 1f32]
             ]
         )
     }
@@ -36,8 +36,8 @@ impl Matrix4x4 {
     pub fn new_rotation(rotation: f32) -> Matrix4x4 {
         Self::new(
             [
-                [rotation.cos(), rotation.sin(), 0f32, 0f32],
-                [-rotation.sin(), rotation.cos(), 0f32, 0f32],
+                [rotation.cos(), -rotation.sin(), 0f32, 0f32],
+                [rotation.sin(), rotation.cos(), 0f32, 0f32],
                 [0f32, 0f32, 1f32, 0f32],
                 [0f32, 0f32, 0f32, 1f32]
             ]
@@ -65,7 +65,7 @@ impl Mul<Matrix4x4> for Matrix4x4 {
         let mut matrix = [[0f32; 4]; 4];
         for i in 0..4 {
             for j in 0..4 {
-                matrix[j][i] = self.matrix[i].dot(&rhs.column(j).unwrap()).unwrap();
+                matrix[i][j] = self.matrix[i].dot(&rhs.column(j).unwrap()).unwrap();
             }
         }
 

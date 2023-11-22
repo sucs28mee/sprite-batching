@@ -7,7 +7,13 @@ use std::time::{Instant, Duration};
 use glium::{backend::glutin::SimpleWindowBuilder, DrawParameters, program};
 use math::Vector2;
 use sprite_batch::{SpriteBatch, DrawData};
-use winit::{event_loop::{EventLoopBuilder, ControlFlow}, event::{WindowEvent, Event, ElementState}};
+use winit::{event_loop::{EventLoopBuilder, ControlFlow}, event::{WindowEvent, Event, ElementState, DeviceEvent}};
+
+struct Particle {
+    position: Vector2,
+    velocity: Vector2,
+    scale: Vector2,
+}
 
 fn main() {
     let event_loop = EventLoopBuilder::new().build();
@@ -26,20 +32,26 @@ fn main() {
         *pixel = image::Rgba([red, 255 - red, 0, 255]);
     }
 
-    let target_frame_rate = 60;
     let mut particles = (0..100)
-        .map(|index| (Vector2::ZERO, Vector2::UNIT_Y.rotated_by(Vector2::ZERO, index as f32) * 20f32))
+        .map(
+            |index| Particle { 
+                position: Vector2::ZERO, 
+                velocity: Vector2::UNIT_Y.rotated_by(Vector2::ZERO, index as f32 * 0.1) * 20f32,
+                scale: Vector2::new((index as f32).sin() + 1f32, 1f32)
+            }
+        )
         .collect::<Vec<_>>();
-    
+    let target_fps = 60;
+    let mut time = 0f32;
     event_loop.run(
         move |event, _, control_flow| {
-            let frame_start_time = Instant::now();
+            let start_time = Instant::now();
             match event {
                 Event::WindowEvent { event, .. } => {
                     match event {
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::MouseInput { state: ElementState::Released, .. } => {
-                            window.request_redraw();
+                        WindowEvent::CloseRequested => {
+                            *control_flow = ControlFlow::Exit;
+                            return;
                         },
                         _ => ()
                     }
@@ -47,32 +59,45 @@ fn main() {
                 Event::RedrawRequested(_) => {
                     let mut sprite_batch = SpriteBatch::new(
                         DrawParameters::default(),
-                        &window, 
-                        &display, 
+                        &window,
+                        &display,
                         &program
                     );
                     
                     for particle in particles.iter_mut() {
-                        particle.0 += particle.1;
-                        particle.1 *= 0.95f32;
+                        particle.position += particle.velocity;
+                        particle.velocity *= 0.95f32;
         
                         sprite_batch.draw(
                             DrawData {
-                                position: particle.0,
-                                rotation: 0f32,
+                                position: particle.position,
+                                rotation: 0.5f32 + time * 0.01f32,
+                                origin: Vector2::ONE * 50f32,
                                 depth: 0f32,
                                 image: &image,
-                                scale: Vector2::ONE
+                                scale: particle.scale * (time.sin() + 1f32)
                             }
                         );
                     }
         
                     sprite_batch.flush().unwrap();
-                },
+                }
                 _ => ()
             }
+            
+            if *control_flow != ControlFlow::Exit {
+                window.request_redraw();
+                let elapsed_time = Instant::now().duration_since(start_time).as_millis() as u64;
 
-            window.request_redraw();
+                let wait_millis = match 1000 / target_fps >= elapsed_time {
+                    true => 1000 / target_fps - elapsed_time,
+                    false => 0
+                };
+                let new_inst = start_time + std::time::Duration::from_millis(wait_millis);
+                *control_flow = ControlFlow::WaitUntil(new_inst);
+            }
+
+            time += 0.02f32;
         }
     );
 }

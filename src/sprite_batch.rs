@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use glium::{
     DrawParameters, 
     Program, 
@@ -9,7 +7,7 @@ use glium::{
     VertexBuffer, 
     IndexBuffer, 
     index::PrimitiveType, 
-    texture::{CompressedTexture2dArray, RawImage2d, Texture2dArray}, 
+    texture::{RawImage2d, Texture2dArray}, 
     Surface, 
     uniform
 };
@@ -21,6 +19,7 @@ use crate::math::{Matrix4x4, Vector2};
 pub struct DrawData<'a> {
     pub position: Vector2,
     pub rotation: f32,
+    pub origin: Vector2,
     pub depth: f32,
     pub image: &'a RgbaImage,
     pub scale: Vector2
@@ -81,14 +80,12 @@ impl <'a> SpriteBatch<'a> {
             textures.push(raw_image);
 
             let matrix = (
-                Matrix4x4::new_scaling(1f32 / screen_width, 1f32 / screen_height, 1f32)
-                * Matrix4x4::new_scaling(
-                    image_dimensions.0 as f32 * draw_data.scale.x,
-                    image_dimensions.1 as f32 * draw_data.scale.y,
-                    1f32
-                )
+                Matrix4x4::new_translation(draw_data.position.x / screen_width, draw_data.position.y / screen_height, 0f32)
+                * Matrix4x4::new_scaling(1f32 / screen_width, 1f32 / screen_height, 1f32)
                 * Matrix4x4::new_rotation(draw_data.rotation)
-                * Matrix4x4::new_translation(draw_data.position.x / screen_width, draw_data.position.y / screen_height, 0f32)
+                * Matrix4x4::new_scaling(draw_data.scale.x, draw_data.scale.y, 1f32)
+                * Matrix4x4::new_translation(-draw_data.origin.x, -draw_data.origin.y, 0f32)
+                * Matrix4x4::new_scaling(image_dimensions.0 as f32, image_dimensions.1 as f32, 1f32)
             ).to_array();
 
             vertices[i * 4] = Vertex {

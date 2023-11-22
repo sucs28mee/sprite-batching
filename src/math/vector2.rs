@@ -1,4 +1,4 @@
-use std::ops::{Mul, Add, MulAssign, AddAssign, Sub, SubAssign};
+use std::ops::{Mul, Add, MulAssign, AddAssign, Sub, SubAssign, DivAssign, Div};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Vector2 {
@@ -68,11 +68,26 @@ impl SubAssign<Vector2> for Vector2 {
     }
 }
 
-impl <T: Into<f64> + Clone> Mul<T> for Vector2 {
+impl Div<Vector2> for Vector2 {
+    type Output = Self;
+
+    fn div(self, rhs: Vector2) -> Self::Output {
+        Self { x: self.x / rhs.x, y: self.y / rhs.y }
+    }
+}
+
+impl DivAssign<Vector2> for Vector2 {
+    fn div_assign(&mut self, rhs: Vector2) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+    }
+}
+
+impl <T: Into<f32> + Clone> Mul<T> for Vector2 {
     type Output = Self;
 
     fn mul(self, rhs: T) -> Self::Output {
-        Self { x: self.x * rhs.clone().into() as f32, y: self.y * rhs.into() as f32}
+        Self { x: self.x * rhs.clone().into(), y: self.y * rhs.into()}
     }
 }
 
