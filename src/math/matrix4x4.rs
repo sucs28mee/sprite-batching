@@ -65,7 +65,7 @@ impl Mul<Matrix4x4> for Matrix4x4 {
         let mut matrix = [[0f32; 4]; 4];
         for i in 0..4 {
             for j in 0..4 {
-                matrix[i][j] = self.matrix[i].dot(&rhs.column(j).unwrap()).unwrap();
+                matrix[j][i] = self.matrix[i].dot(&rhs.column(j).unwrap()).unwrap();
             }
         }
 

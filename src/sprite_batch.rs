@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use glium::{
     DrawParameters, 
     Program, 
@@ -7,7 +9,7 @@ use glium::{
     VertexBuffer, 
     IndexBuffer, 
     index::PrimitiveType, 
-    texture::{CompressedTexture2dArray, RawImage2d}, 
+    texture::{CompressedTexture2dArray, RawImage2d, Texture2dArray}, 
     Surface, 
     uniform
 };
@@ -81,12 +83,12 @@ impl <'a> SpriteBatch<'a> {
             let matrix = (
                 Matrix4x4::new_scaling(1f32 / screen_width, 1f32 / screen_height, 1f32)
                 * Matrix4x4::new_scaling(
-                    image_dimensions.0 as f32 + draw_data.scale.x,
-                    image_dimensions.1 as f32 + draw_data.scale.y,
+                    image_dimensions.0 as f32 * draw_data.scale.x,
+                    image_dimensions.1 as f32 * draw_data.scale.y,
                     1f32
                 )
                 * Matrix4x4::new_rotation(draw_data.rotation)
-                * Matrix4x4::new_translation(draw_data.position.x, draw_data.position.y, 0f32)
+                * Matrix4x4::new_translation(draw_data.position.x / screen_width, draw_data.position.y / screen_height, 0f32)
             ).to_array();
 
             vertices[i * 4] = Vertex {
@@ -122,14 +124,15 @@ impl <'a> SpriteBatch<'a> {
             return Err(());
         };
 
+        
         let Ok(index_buffer) = IndexBuffer::new(self.display, PrimitiveType::TrianglesList, &indices) else {
             return Err(());
         };
-
-        let Ok(textures) = CompressedTexture2dArray::new(self.display, textures) else {
+        
+        let Ok(textures) = Texture2dArray::new(self.display, textures) else {
             return Err(());
         };
-
+        
         let mut frame = self.display.draw();
         frame.clear_color(0f32, 0f32, 0f32, 0f32);
         frame.draw(
@@ -141,7 +144,7 @@ impl <'a> SpriteBatch<'a> {
             },
             &self.draw_parameters
         ).map_err(|_| ())?;
-
+        
         frame.finish().map_err(|_| ())
     }
 
