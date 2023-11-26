@@ -1,103 +1,101 @@
 mod math;
 mod sprite_batch;
+mod application;
+mod sprite;
+mod color;
 
-
-use std::time::{Instant, Duration};
-
-use glium::{backend::glutin::SimpleWindowBuilder, DrawParameters, program};
-use math::Vector2;
+use std::{collections::HashMap, default::Default};
+use application::ApplicationContext;
+use color::Color;
+use glium::{Blend, uniforms::MagnifySamplerFilter};
+use image::ImageFormat;
+use math::{Rectangle, Vector2};
+use rand::{Rng, rngs::ThreadRng};
+use sprite::{Sprite, SpriteLoader};
 use sprite_batch::{SpriteBatch, DrawData};
-use winit::{event_loop::{EventLoopBuilder, ControlFlow}, event::{WindowEvent, Event, ElementState, DeviceEvent}};
 
 struct Particle {
     position: Vector2,
     velocity: Vector2,
-    scale: Vector2,
+    rotation: f32,
+    time_left: f32
+}
+
+struct Application { 
+    sprites: HashMap<String, Sprite>,
+    particles: Vec<Particle>,
+    time: f32,
+    next_spawn_time: f32,
+    random: ThreadRng,
+    background_color: Color
+}
+
+impl ApplicationContext for Application {
+    fn new() -> Self {
+        Self { sprites: HashMap::new(), particles: Vec::new(), time: 0f32, next_spawn_time: 0f32, random: rand::thread_rng(), background_color: Color::GREEN }
+    }
+
+    fn load(&mut self, sprite_loader: &mut SpriteLoader) {
+        self.sprites.insert(
+            "Slime".to_owned(), 
+            sprite_loader.load_sprite(
+                image::load_from_memory_with_format(
+                    include_bytes!("../assets/Slime.png"), 
+                    ImageFormat::Png
+                ).unwrap().into_rgba8()
+            )
+        );
+    }
+
+    fn update(&mut self, delta_time: f32) {
+        println!("FPS: {}", 1f32 / delta_time);
+        if self.time > self.next_spawn_time {
+            self.next_spawn_time = self.time + 0.0001f32;
+            self.particles.push(
+                Particle { 
+                    position: Vector2::ZERO, 
+                    velocity: Vector2::new(self.random.gen_range(-500f32..500f32), self.random.gen_range(500f32..1000f32)), 
+                    rotation:  self.random.gen_range(-1f32..1f32),
+                    time_left: 20f32
+                }
+            )
+        }
+
+        self.particles.retain_mut(
+            |particle| {
+                particle.position += particle.velocity * delta_time;
+                particle.velocity.y -= 250f32 * delta_time;
+                particle.rotation += particle.velocity.y * delta_time * 0.001f32;
+
+                particle.time_left -= delta_time;
+                particle.time_left > 0f32 
+            }
+        );
+
+        self.time += delta_time;
+    }
+
+    fn draw(&self, sprite_batch: &mut SpriteBatch) { 
+        sprite_batch.clear_color(self.background_color);
+
+        sprite_batch.sampler_behaviour.magnify_filter = MagnifySamplerFilter::Nearest;
+        sprite_batch.draw_parameters.blend = Blend::alpha_blending();
+        for particle in self.particles.iter() {
+            sprite_batch.draw(
+                DrawData {
+                    position: particle.position,
+                    sprite: self.sprites["Slime"],
+                    source: Some(Rectangle::new(0f32, ((self.time * 4f32) as u32 % 3) as f32 * 16f32, 16f32, 16f32)),
+                    scale: Vector2::ONE * 10f32,
+                    origin: Vector2::ONE * 8f32,
+                    rotation: particle.rotation,
+                    ..Default::default()
+                }
+            );
+        }
+    }
 }
 
 fn main() {
-    let event_loop = EventLoopBuilder::new().build();
-    let (window, display) = SimpleWindowBuilder::new().build(&event_loop);
-    let program = program!(
-        &display,
-        140 => {
-            vertex: include_str!("shaders/default.vert"),
-            fragment: include_str!("shaders/default.frag")
-        }
-    ).unwrap();
-
-    let mut image = image::RgbaImage::new(100, 100);
-    for (i, _, pixel) in image.enumerate_pixels_mut() {
-        let red = (255f32 * i as f32 / 100f32) as u8;
-        *pixel = image::Rgba([red, 255 - red, 0, 255]);
-    }
-
-    let mut particles = (0..100)
-        .map(
-            |index| Particle { 
-                position: Vector2::ZERO, 
-                velocity: Vector2::UNIT_Y.rotated_by(Vector2::ZERO, index as f32 * 0.1) * 20f32,
-                scale: Vector2::new((index as f32).sin() + 1f32, 1f32)
-            }
-        )
-        .collect::<Vec<_>>();
-    let target_fps = 60;
-    let mut time = 0f32;
-    event_loop.run(
-        move |event, _, control_flow| {
-            let start_time = Instant::now();
-            match event {
-                Event::WindowEvent { event, .. } => {
-                    match event {
-                        WindowEvent::CloseRequested => {
-                            *control_flow = ControlFlow::Exit;
-                            return;
-                        },
-                        _ => ()
-                    }
-                },
-                Event::RedrawRequested(_) => {
-                    let mut sprite_batch = SpriteBatch::new(
-                        DrawParameters::default(),
-                        &window,
-                        &display,
-                        &program
-                    );
-                    
-                    for particle in particles.iter_mut() {
-                        particle.position += particle.velocity;
-                        particle.velocity *= 0.95f32;
-        
-                        sprite_batch.draw(
-                            DrawData {
-                                position: particle.position,
-                                rotation: 0.5f32 + time * 0.01f32,
-                                origin: Vector2::ONE * 50f32,
-                                depth: 0f32,
-                                image: &image,
-                                scale: particle.scale * (time.sin() + 1f32)
-                            }
-                        );
-                    }
-        
-                    sprite_batch.flush().unwrap();
-                }
-                _ => ()
-            }
-            
-            if *control_flow != ControlFlow::Exit {
-                window.request_redraw();
-                let elapsed_time = Instant::now().duration_since(start_time).as_millis() as u64;
-
-                let wait_millis = match 1000 / target_fps >= elapsed_time {
-                    true => 1000 / target_fps - elapsed_time,
-                    false => 0
-                };
-                let new_inst = start_time + std::time::Duration::from_millis(wait_millis);
-                *control_flow = ControlFlow::WaitUntil(new_inst);
-            }
-
-            time += 0.02f32;
-        }
-    );
+    application::run::<Application>();
 }

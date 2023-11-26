@@ -1,8 +1,10 @@
 mod vector2;
 mod matrix4x4;
+mod rectangle;
 
 pub use vector2::Vector2;
 pub use matrix4x4::Matrix4x4;
+pub use rectangle::Rectangle;
 
 use std::ops::{AddAssign, Mul};
 
